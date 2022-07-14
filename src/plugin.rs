@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use solana_geyser_plugin_interface::geyser_plugin_interface::ReplicaTransactionInfo;
-use solana_program::message::AccountKeys;
 use {
     crate::*,
     log::info,
