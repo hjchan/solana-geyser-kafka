@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use solana_program::message::AccountKeys;
 use {
     crate::*,
     solana_program::pubkey::Pubkey,
@@ -19,14 +20,14 @@ use {
 };
 
 pub struct Filter {
-    program_ignores: HashSet<[u8; 32]>,
+    program_selected: HashSet<[u8; 32]>,
 }
 
 impl Filter {
     pub fn new(config: &Config) -> Self {
         Self {
-            program_ignores: config
-                .program_ignores
+            program_selected: config
+                .program_selected
                 .iter()
                 .flat_map(|p| Pubkey::from_str(p).ok().map(|p| p.to_bytes()))
                 .collect(),
@@ -38,7 +39,16 @@ impl Filter {
             Ok(key) => key,
             _ => return true,
         };
-        !self.program_ignores.contains(key)
+        self.program_selected.contains(key)
+    }
+
+    pub fn wants_transaction(&self, account_keys: AccountKeys) -> bool {
+        for address in account_keys.iter() {
+            if self.program_selected.contains(address.as_ref()) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -49,7 +59,7 @@ mod tests {
     #[test]
     fn test_filter() {
         let config = Config {
-            program_ignores: vec![
+            program_selected: vec![
                 "Sysvar1111111111111111111111111111111111111".to_owned(),
                 "Vote111111111111111111111111111111111111111".to_owned(),
             ],
@@ -57,14 +67,14 @@ mod tests {
         };
 
         let filter = Filter::new(&config);
-        assert_eq!(filter.program_ignores.len(), 2);
+        assert_eq!(filter.program_selected.len(), 2);
 
-        assert!(filter.wants_program(
+        assert!(!filter.wants_program(
             &Pubkey::from_str("9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin")
                 .unwrap()
                 .to_bytes()
         ));
-        assert!(!filter.wants_program(
+        assert!(filter.wants_program(
             &Pubkey::from_str("Vote111111111111111111111111111111111111111")
                 .unwrap()
                 .to_bytes()

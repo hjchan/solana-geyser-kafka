@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use solana_geyser_plugin_interface::geyser_plugin_interface::ReplicaTransactionInfo;
+use solana_program::message::AccountKeys;
 use {
     crate::*,
     log::info,
@@ -135,15 +137,22 @@ impl GeyserPlugin for KafkaPlugin {
 
     fn notify_transaction(
         &mut self,
-        transaction: ReplicaTransactionInfoVersions,
+        transaction_info: ReplicaTransactionInfoVersions,
         slot: u64,
     ) -> PluginResult<()> {
         let publisher = self.unwrap_publisher();
         if !publisher.wants_transaction() {
             return Ok(());
         }
+        let ReplicaTransactionInfoVersions::V0_0_1(transaction_info) = transaction_info;
 
-        let event = Self::build_transaction_event(slot, transaction);
+        let account_keys = transaction_info.transaction.message().account_keys();
+
+        if !self.unwrap_filter().wants_transaction(account_keys) {
+            return Ok(());
+        }
+
+        let event = Self::build_transaction_event(slot, transaction_info);
 
         publisher
             .update_transaction(event)
@@ -216,9 +225,9 @@ impl KafkaPlugin {
 
     fn build_transaction_event(
         slot: u64,
-        transaction: ReplicaTransactionInfoVersions,
+        transaction: &ReplicaTransactionInfo,
     ) -> TransactionEvent {
-        let ReplicaTransactionInfoVersions::V0_0_1(transaction) = transaction;
+        // let ReplicaTransactionInfoVersions::V0_0_1(transaction) = transaction;
         let transaction_status_meta = transaction.transaction_status_meta;
         let signature = transaction.signature;
         let is_vote = transaction.is_vote;
