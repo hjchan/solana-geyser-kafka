@@ -144,6 +144,9 @@ impl GeyserPlugin for KafkaPlugin {
             return Ok(());
         }
         let ReplicaTransactionInfoVersions::V0_0_1(transaction_info) = transaction_info;
+        if transaction_info.transaction_status_meta.status.is_err() {
+            return Ok(());
+        }
 
         let account_keys = transaction_info.transaction.message().account_keys();
 
